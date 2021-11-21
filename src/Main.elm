@@ -197,7 +197,6 @@ view model =
                 -- , ( "justify-content", "space-between" )
                 , ( "align-items", "center" )
                 ]
-                ++ [ Attr.class "hidden" ]
             )
             [ H.button [ Ev.onClick ResetBoard ] [ H.text "Reset" ]
             , H.button [ Ev.onClick GenerateCleanSlate ] [ H.text "Blank" ]
