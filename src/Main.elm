@@ -1,12 +1,13 @@
 module Main exposing (..)
 
-import Board exposing (Cell, Status, boardGenerator, convertToStyle, randomList, viewBoard)
+import Array as Ar
+import Board as B
 import Browser
 import Html as H
 import Html.Attributes as Attr
 import Html.Events as Ev
-import List.Extra as List
 import Random
+import Time
 
 
 main =
@@ -19,33 +20,44 @@ main =
 
 
 type alias Model =
-    { board : List (List Cell)
+    { board : B.Board
     , size : Int
     , generation : Int
+    , civilizationState : CivilizationState
+    , runs : List Int
     }
+
+
+type CivilizationState
+    = Stopped
+    | Running
 
 
 type Msg
     = NoOp
-    | GenerateBoard (List Status)
+    | GenerateBoard (List B.Status)
     | ChangeSizeOfBoard Int
     | ResetBoard
-    | BoardInteraction Board.Msg
+    | BoardInteraction B.Msg
     | Next
+    | Start
+    | Pause
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
     let
         size =
-            10
+            20
     in
     ( { board =
-            []
+            Ar.empty
       , size = size
       , generation = 0
+      , civilizationState = Stopped
+      , runs = []
       }
-    , Random.generate GenerateBoard (randomList size)
+    , Random.generate GenerateBoard (B.randomList size)
     )
 
 
@@ -60,35 +72,36 @@ update msg model =
             ( model, Cmd.none )
 
         ResetBoard ->
-            ( { board = [], size = 10, generation = 0 }, Random.generate GenerateBoard (randomList 10) )
+            ( { model | board = Ar.empty, generation = 0, civilizationState = Stopped, runs = [] }, Random.generate GenerateBoard (B.randomList model.size) )
 
         GenerateBoard list ->
-            ( { model | board = boardGenerator model.size list }, Cmd.none )
+            ( { model | board = B.boardGenerator model.size list }, Cmd.none )
 
         ChangeSizeOfBoard size ->
             ( { model
                 | size = size
+                , civilizationState = Stopped
               }
-            , Random.generate GenerateBoard (randomList size)
+            , Random.generate GenerateBoard (B.randomList size)
             )
 
         BoardInteraction boardMsg ->
             case boardMsg of
-                Board.Clicked position ->
+                B.Clicked position ->
                     let
                         newBoard =
-                            List.map
+                            Ar.map
                                 (\row ->
-                                    List.map
+                                    Ar.map
                                         (\cell ->
                                             if cell.position == position then
                                                 { cell
                                                     | status =
-                                                        if cell.status == Board.Alive then
-                                                            Board.Dead
+                                                        if cell.status == B.Alive then
+                                                            B.Dead
 
                                                         else
-                                                            Board.Alive
+                                                            B.Alive
                                                 }
 
                                             else
@@ -103,21 +116,17 @@ update msg model =
         Next ->
             let
                 hasEnded =
-                    model.board
-                        |> List.concat
-                        |> List.any (\cell -> cell.status == Board.Alive)
-                        |> not
+                    B.hasCivilizationCollapsed model.board
 
                 newBoard =
                     if hasEnded then
                         model.board
 
                     else
-                        model.board
-                            |> List.map (List.map (Board.generateNextGenerationForCell model.board))
+                        B.getNextGenerationOfBoard model.board
             in
             if hasEnded then
-                ( model, Cmd.none )
+                ( { model | civilizationState = Stopped, runs = model.generation :: model.runs }, Cmd.none )
 
             else
                 ( { model
@@ -128,6 +137,18 @@ update msg model =
                 , Cmd.none
                 )
 
+        Start ->
+            if B.hasCivilizationCollapsed model.board then
+                ( { model | civilizationState = Running, generation = 0 }
+                , Random.generate GenerateBoard (B.randomList model.size)
+                )
+
+            else
+                ( { model | civilizationState = Running }, Cmd.none )
+
+        Pause ->
+            ( { model | civilizationState = Stopped }, Cmd.none )
+
 
 
 -- view
@@ -136,7 +157,7 @@ update msg model =
 view : Model -> H.Html Msg
 view model =
     H.div
-        (convertToStyle
+        (B.convertToStyle
             [ ( "display", "flex" )
             , ( "flex-direction", "column" )
             , ( "margin", "10rem auto" )
@@ -144,7 +165,7 @@ view model =
             , ( "gap", "2rem" )
             ]
         )
-        [ H.map BoardInteraction <| viewBoard model.board
+        [ H.map BoardInteraction <| B.viewBoard model.board
         , H.div [] [ H.text <| "Generation: " ++ String.fromInt model.generation ]
         , H.div []
             [ H.span [] [ H.text "Size: " ]
@@ -156,16 +177,45 @@ view model =
                 []
             ]
         , H.div
-            (convertToStyle
+            (B.convertToStyle
                 [ ( "display", "flex" )
-                , ( "gap", "2rem" )
-                , ( "flex", "1 1 50%" )
-                , ( "justify-content", "space-between" )
+                , ( "gap", "1rem" )
+                , ( "flex", "1 1 auto" )
+
+                -- , ( "justify-content", "space-between" )
                 , ( "align-items", "center" )
                 ]
             )
             [ H.button [ Ev.onClick ResetBoard ] [ H.text "Reset" ]
-            , H.button [ Ev.onClick Next, Attr.autofocus True ] [ H.text "Step >>" ]
+            , H.button
+                [ Ev.onClick
+                    (if model.civilizationState == Running then
+                        Pause
+
+                     else
+                        Start
+                    )
+                ]
+                [ H.text
+                    (if model.civilizationState == Running then
+                        "Pause"
+
+                     else
+                        "Start"
+                    )
+                ]
+            , H.button
+                [ Ev.onClick Next
+                , Attr.disabled (B.hasCivilizationCollapsed model.board)
+                ]
+                [ H.text "Step >>" ]
+            ]
+        , H.div []
+            [ H.ul []
+                (List.map
+                    (\run -> H.li [] [ H.text <| String.fromInt run ])
+                    model.runs
+                )
             ]
         ]
 
@@ -175,5 +225,10 @@ view model =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Sub.none
+subscriptions model =
+    case model.civilizationState of
+        Running ->
+            Time.every 100 (\_ -> Next)
+
+        _ ->
+            Sub.none

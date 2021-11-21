@@ -1,5 +1,7 @@
 module Board exposing (..)
 
+import Array
+import Array.Extra as Array
 import Html as H
 import Html.Attributes as Attr
 import Html.Events as Ev
@@ -19,7 +21,7 @@ type alias Cell =
 
 
 type alias Board =
-    List (List Cell)
+    Array.Array (Array.Array Cell)
 
 
 type Status
@@ -43,12 +45,16 @@ type alias Position =
     ( Int, Int )
 
 
-viewCell : Cell -> H.Html Msg
-viewCell cell =
+viewCell : Int -> Cell -> H.Html Msg
+viewCell size cell =
+    let
+        cellSize =
+            String.fromInt (250 // size) ++ "px"
+    in
     H.span
         (convertToStyle
-            [ ( "width", "16px" )
-            , ( "height", "16px" )
+            [ ( "width", cellSize )
+            , ( "height", cellSize )
             , ( "background"
               , if cell.status == Alive then
                     "black"
@@ -65,33 +71,46 @@ viewCell cell =
         []
 
 
-viewBoard : List (List Cell) -> H.Html Msg
+viewBoard : Board -> H.Html Msg
 viewBoard board =
+    let
+        board_ =
+            Array.toList
+                (Array.map
+                    (\row -> Array.toList row)
+                    board
+                )
+
+        size =
+            Array.length board
+    in
     H.div
         (convertToStyle
             [ ( "line-height", "0" )
             ]
         )
         (List.map
-            viewRow
-            board
+            (viewRow
+                size
+            )
+            board_
         )
 
 
-viewRow : List Cell -> H.Html Msg
-viewRow row =
+viewRow : Int -> List Cell -> H.Html Msg
+viewRow size row =
     H.div
         (convertToStyle
             [ ( "margin", "0" )
             , ( "padding", "0" )
             ]
         )
-        (List.map viewCell row)
+        (List.map (viewCell size) row)
 
 
 randomBoolGenerator : Rand.Generator Status
 randomBoolGenerator =
-    Rand.weighted ( 50, Dead ) [ ( 50, Alive ) ]
+    Rand.weighted ( 70, Dead ) [ ( 30, Alive ) ]
 
 
 randomList : Int -> Rand.Generator (List Status)
@@ -99,7 +118,7 @@ randomList size =
     Rand.list (size * size) randomBoolGenerator
 
 
-boardGenerator : Int -> List Status -> List (List Cell)
+boardGenerator : Int -> List Status -> Board
 boardGenerator size listOfCellStatuses =
     listOfCellStatuses
         |> List.groupsOf size
@@ -113,52 +132,150 @@ boardGenerator size listOfCellStatuses =
                     )
                     row
             )
+        |> List.map (\row -> Array.fromList row)
+        |> Array.fromList
 
 
-neighbors : Position -> List Position
-neighbors ( row, cell ) =
-    [ ( row - 1, cell - 1 )
-    , ( row - 1, cell )
-    , ( row - 1, cell + 1 )
-    , ( row, cell - 1 )
-    , ( row, cell + 1 )
-    , ( row + 1, cell - 1 )
-    , ( row + 1, cell )
-    , ( row + 1, cell + 1 )
-    ]
+getNeighboringCells : Board -> Cell -> Array.Array Cell
+getNeighboringCells board { position } =
+    let
+        ( row, cell ) =
+            position
+
+        currRowFromBoard =
+            Array.get row board |> Maybe.withDefault Array.empty
+
+        prevRowFromBoard =
+            Array.get (row - 1) board |> Maybe.withDefault Array.empty
+
+        nextRowFromBoard =
+            Array.get (row + 1) board |> Maybe.withDefault Array.empty
+
+        adjacentCellGetter =
+            Array.fromList [ Array.get (cell - 1), Array.get cell, Array.get (cell + 1) ]
+
+        adjacentCellsPrevRow : Array.Array Cell
+        adjacentCellsPrevRow =
+            Array.map (\cellGetter -> cellGetter prevRowFromBoard) adjacentCellGetter
+                |> Array.foldl reducer Array.empty
+
+        reducer : Maybe Cell -> Array.Array Cell -> Array.Array Cell
+        reducer maybeCell res =
+            case maybeCell of
+                Just c ->
+                    Array.push c res
+
+                Nothing ->
+                    res
+
+        adjacentCellsNextRow : Array.Array Cell
+        adjacentCellsNextRow =
+            Array.map (\cellGetter -> cellGetter nextRowFromBoard) adjacentCellGetter
+                |> Array.foldl reducer Array.empty
+
+        adjacentCellsSameRow : Array.Array Cell
+        adjacentCellsSameRow =
+            Array.map (\cellGetter -> cellGetter currRowFromBoard)
+                (Array.fromList [ Array.get (cell - 1), Array.get (cell + 1) ])
+                |> Array.foldl reducer Array.empty
+    in
+    Array.append adjacentCellsSameRow adjacentCellsNextRow
+        |> Array.append adjacentCellsPrevRow
 
 
-generateNextGenerationForCell : Board -> Cell -> Cell
-generateNextGenerationForCell board cell =
+getNewStatusOfCell : Cell -> Board -> Status
+getNewStatusOfCell cell board =
     let
         neighboringCells =
-            List.map
-                (List.filter (\cell_ -> List.member cell_.position (neighbors cell.position)))
-                board
-                |> List.concat
+            getNeighboringCells board cell
 
-        aliveNeighbors =
-            List.length <| List.filter (\c -> c.status == Alive) neighboringCells
+        numberOfAliveCells =
+            Array.length <| Array.filter isAlive neighboringCells
 
-        getNextGenForAliveCell =
-            if aliveNeighbors == 2 then
-                Alive
-
-            else
-                Dead
-
-        getNextGenForDeadCell =
-            if aliveNeighbors >= 3 then
-                Alive
-
-            else
-                Dead
+        isAlive c =
+            c.status == Alive
     in
-    { cell
-        | status =
-            if cell.status == Alive then
-                getNextGenForAliveCell
+    case cell.status of
+        Alive ->
+            if numberOfAliveCells == 2 then
+                Alive
 
             else
-                getNextGenForDeadCell
-    }
+                Dead
+
+        Dead ->
+            if numberOfAliveCells >= 3 then
+                Alive
+
+            else
+                Dead
+
+
+getNextGenerationOfBoard : Board -> Board
+getNextGenerationOfBoard board =
+    Array.map
+        (\row ->
+            Array.map
+                (\cell -> { cell | status = getNewStatusOfCell cell board })
+                row
+        )
+        board
+
+
+hasCivilizationCollapsed : Board -> Bool
+hasCivilizationCollapsed board =
+    let
+        rowsAsBool : Array.Array Bool
+        rowsAsBool =
+            Array.map
+                (\row ->
+                    Array.any
+                        (\cell -> cell.status == Alive)
+                        row
+                )
+                board
+    in
+    Array.any (\v -> v == True) rowsAsBool
+        |> not
+
+
+
+-- neighbors : Position -> List Position
+-- neighbors ( row, cell ) =
+--     [ ( row - 1, cell - 1 )
+--     , ( row - 1, cell )
+--     , ( row - 1, cell + 1 )
+--     , ( row, cell - 1 )
+--     , ( row, cell + 1 )
+--     , ( row + 1, cell - 1 )
+--     , ( row + 1, cell )
+--     , ( row + 1, cell + 1 )
+--     ]
+-- generateNextGenerationForCell : Board -> Cell -> Cell
+-- generateNextGenerationForCell board cell =
+--     let
+--         neighboringCells =
+--             List.map
+--                 (List.filter (\cell_ -> List.member cell_.position (neighbors cell.position)))
+--                 board
+--                 |> List.concat
+--         aliveNeighbors =
+--             List.length <| List.filter (\c -> c.status == Alive) neighboringCells
+--         getNextGenForAliveCell =
+--             if aliveNeighbors == 2 then
+--                 Alive
+--             else
+--                 Dead
+--         getNextGenForDeadCell =
+--             if aliveNeighbors >= 3 then
+--                 Alive
+--             else
+--                 Dead
+--     in
+--     { cell
+--         | status =
+--             if cell.status == Alive then
+--                 getNextGenForAliveCell
+--             else
+--                 getNextGenForDeadCell
+--     }
