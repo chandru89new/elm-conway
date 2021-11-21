@@ -81,6 +81,7 @@ update msg model =
             ( { model
                 | size = size
                 , civilizationState = Stopped
+                , generation = 0
               }
             , Random.generate GenerateBoard (B.randomList size)
             )
@@ -206,7 +207,7 @@ view model =
                 ]
             , H.button
                 [ Ev.onClick Next
-                , Attr.disabled (B.hasCivilizationCollapsed model.board)
+                , Attr.disabled (B.hasCivilizationCollapsed model.board || (model.civilizationState == Running))
                 ]
                 [ H.text "Step >>" ]
             ]
