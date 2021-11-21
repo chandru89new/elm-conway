@@ -49,7 +49,7 @@ viewCell : Int -> Cell -> H.Html Msg
 viewCell size cell =
     let
         cellSize =
-            String.fromInt (250 // size) ++ "px"
+            String.fromInt (400 // size) ++ "px"
     in
     H.span
         (convertToStyle
@@ -110,7 +110,7 @@ viewRow size row =
 
 randomBoolGenerator : Rand.Generator Status
 randomBoolGenerator =
-    Rand.weighted ( 70, Dead ) [ ( 30, Alive ) ]
+    Rand.weighted ( 100, Dead ) [ ( 0, Alive ) ]
 
 
 randomList : Int -> Rand.Generator (List Status)

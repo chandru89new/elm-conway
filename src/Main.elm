@@ -162,7 +162,7 @@ view model =
             [ ( "display", "flex" )
             , ( "flex-direction", "column" )
             , ( "margin", "10rem auto" )
-            , ( "max-width", "500px" )
+            , ( "max-width", "700px" )
             , ( "gap", "2rem" )
             ]
         )
