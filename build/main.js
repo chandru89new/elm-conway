@@ -6658,6 +6658,15 @@ var $author$project$Main$Pause = {$: 8};
 var $author$project$Main$ResetBoard = {$: 4};
 var $author$project$Main$Start = {$: 7};
 var $elm$html$Html$button = _VirtualDom_node('button');
+var $elm$json$Json$Encode$string = _Json_wrap;
+var $elm$html$Html$Attributes$stringProperty = F2(
+	function (key, string) {
+		return A2(
+			_VirtualDom_property,
+			key,
+			$elm$json$Json$Encode$string(string));
+	});
+var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $elm$virtual_dom$VirtualDom$style = _VirtualDom_style;
 var $elm$html$Html$Attributes$style = $elm$virtual_dom$VirtualDom$style;
 var $author$project$Board$convertToStyle = $elm$core$List$map(
@@ -6733,19 +6742,10 @@ var $elm$html$Html$Events$onInput = function (tagger) {
 var $elm$html$Html$span = _VirtualDom_node('span');
 var $elm$virtual_dom$VirtualDom$text = _VirtualDom_text;
 var $elm$html$Html$text = $elm$virtual_dom$VirtualDom$text;
-var $elm$json$Json$Encode$string = _Json_wrap;
-var $elm$html$Html$Attributes$stringProperty = F2(
-	function (key, string) {
-		return A2(
-			_VirtualDom_property,
-			key,
-			$elm$json$Json$Encode$string(string));
-	});
 var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
 var $elm$html$Html$ul = _VirtualDom_node('ul');
 var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
 var $author$project$Board$Clicked = $elm$core$Basics$identity;
-var $elm$html$Html$Attributes$class = $elm$html$Html$Attributes$stringProperty('className');
 var $author$project$Board$viewCell = F2(
 	function (size, cell) {
 		var cellSize = $elm$core$String$fromInt((400 / size) | 0) + 'px';
@@ -6820,6 +6820,16 @@ var $author$project$Main$view = function (model) {
 				])),
 		_List_fromArray(
 			[
+				A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('text-4xl')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Conway\'s Game of Life')
+					])),
 				A2(
 				$elm$html$Html$map,
 				$author$project$Main$BoardInteraction,

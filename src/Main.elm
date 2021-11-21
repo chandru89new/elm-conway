@@ -177,7 +177,8 @@ view model =
             , ( "gap", "2rem" )
             ]
         )
-        [ H.map BoardInteraction <| B.viewBoard model.board
+        [ H.div [ Attr.class "text-4xl" ] [ H.text "Conway's Game of Life" ]
+        , H.map BoardInteraction <| B.viewBoard model.board
         , H.div [] [ H.text <| "Generation: " ++ String.fromInt model.generation ]
         , H.div []
             [ H.span [] [ H.text "Size: " ]
