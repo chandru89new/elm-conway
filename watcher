@@ -1,0 +1,27 @@
+#!/bin/bash
+
+
+### Set initial time of file
+echo "Okay, I've Started the watcher. You can now start making edits to the files in /src and /styles folder and they will be automatically built."
+ELM_LTIME=`stat src/*`
+CSS_LTIME=`stat styles/*`
+while true
+do
+    ELM_ATIME=`stat src/*` 
+    if [[ "$ELM_ATIME" != "$ELM_LTIME" ]]
+    then
+        echo "Changes detected. Building..."
+        yarn build-css && yarn dev-build-elm
+        echo "Ready."
+        ELM_LTIME=$ELM_ATIME
+    fi
+    CSS_ATIME=`stat styles/*`
+    if [[ "$CSS_ATIME" != "$CSS_LTIME" ]]
+    then
+        echo "Changes detected. Building..."
+        yarn build-css && yarn dev-build-elm
+        echo "Ready."
+        CSS_LTIME=$CSS_ATIME
+    fi
+    sleep 3 
+done

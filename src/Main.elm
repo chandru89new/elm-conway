@@ -36,6 +36,7 @@ type CivilizationState
 type Msg
     = NoOp
     | GenerateBoard (List B.Status)
+    | GenerateCleanSlate
     | ChangeSizeOfBoard Int
     | ResetBoard
     | BoardInteraction B.Msg
@@ -70,6 +71,16 @@ update msg model =
     case msg of
         NoOp ->
             ( model, Cmd.none )
+
+        GenerateCleanSlate ->
+            ( { model
+                | board = B.emptyBoardGenerator model.size
+                , generation = 0
+                , runs = []
+                , civilizationState = Stopped
+              }
+            , Cmd.none
+            )
 
         ResetBoard ->
             ( { model | board = Ar.empty, generation = 0, civilizationState = Stopped, runs = [] }, Random.generate GenerateBoard (B.randomList model.size) )
@@ -186,8 +197,10 @@ view model =
                 -- , ( "justify-content", "space-between" )
                 , ( "align-items", "center" )
                 ]
+                ++ [ Attr.class "hidden" ]
             )
             [ H.button [ Ev.onClick ResetBoard ] [ H.text "Reset" ]
+            , H.button [ Ev.onClick GenerateCleanSlate ] [ H.text "Blank" ]
             , H.button
                 [ Ev.onClick
                     (if model.civilizationState == Running then

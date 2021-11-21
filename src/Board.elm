@@ -52,21 +52,22 @@ viewCell size cell =
             String.fromInt (400 // size) ++ "px"
     in
     H.span
-        (convertToStyle
-            [ ( "width", cellSize )
-            , ( "height", cellSize )
-            , ( "background"
-              , if cell.status == Alive then
-                    "black"
+        (Attr.class
+            (if cell.status == Alive then
+                "bg-red-500"
 
-                else
-                    "white"
-              )
-            , ( "border", "1px solid rgba(0,0,0,0.2)" )
-            , ( "display", "inline-block" )
-            ]
-            ++ [ Ev.onClick (Clicked cell.position)
-               ]
+             else
+                "bg-white"
+            )
+            :: (convertToStyle
+                    [ ( "width", cellSize )
+                    , ( "height", cellSize )
+                    , ( "border", "1px solid rgba(0,0,0,0.2)" )
+                    , ( "display", "inline-block" )
+                    ]
+                    ++ [ Ev.onClick (Clicked cell.position)
+                       ]
+               )
         )
         []
 
@@ -110,7 +111,7 @@ viewRow size row =
 
 randomBoolGenerator : Rand.Generator Status
 randomBoolGenerator =
-    Rand.weighted ( 100, Dead ) [ ( 0, Alive ) ]
+    Rand.weighted ( 80, Dead ) [ ( 20, Alive ) ]
 
 
 randomList : Int -> Rand.Generator (List Status)
@@ -127,6 +128,24 @@ boardGenerator size listOfCellStatuses =
                 List.indexedMap
                     (\cellId status ->
                         { status = status
+                        , position = ( rowId, cellId )
+                        }
+                    )
+                    row
+            )
+        |> List.map (\row -> Array.fromList row)
+        |> Array.fromList
+
+
+emptyBoardGenerator : Int -> Board
+emptyBoardGenerator size =
+    List.range 1 (size * size)
+        |> List.groupsOf size
+        |> List.indexedMap
+            (\rowId row ->
+                List.indexedMap
+                    (\cellId _ ->
+                        { status = Dead
                         , position = ( rowId, cellId )
                         }
                     )
