@@ -197,14 +197,14 @@ getNewStatusOfCell cell board =
     in
     case cell.status of
         Alive ->
-            if numberOfAliveCells == 2 then
+            if numberOfAliveCells >= 2 && numberOfAliveCells <= 3 then
                 Alive
 
             else
                 Dead
 
         Dead ->
-            if numberOfAliveCells >= 3 then
+            if numberOfAliveCells == 3 then
                 Alive
 
             else
