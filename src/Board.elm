@@ -112,18 +112,19 @@ viewRow size row =
 
 emptyBoardGenerator : Int -> Board
 emptyBoardGenerator size =
-    List.range 1 (size * size)
-        |> List.groupsOf size
-        |> List.indexedMap
-            (\rowId row ->
-                List.indexedMap
-                    (\cellId _ ->
-                        { status = Dead
-                        , position = ( rowId, cellId )
-                        }
-                    )
-                    row
+    List.range 0 (size * size - 1)
+        |> List.map
+            (\id ->
+                let
+                    row =
+                        id // size
+
+                    cell =
+                        modBy size id
+                in
+                Cell Dead ( row, cell )
             )
+        |> List.groupsOf size
         |> List.map Array.fromList
         |> Array.fromList
 
@@ -244,13 +245,16 @@ randomCellGenerator position =
 
 randomBoardGenerator : Int -> Rand.Generator (List Cell)
 randomBoardGenerator size =
-    List.range 1 (size * size)
-        |> List.groupsOf size
-        |> List.indexedMap
-            (\rowId row ->
-                List.indexedMap
-                    (\cellId _ -> randomCellGenerator ( rowId, cellId ))
-                    row
+    List.range 0 (size * size - 1)
+        |> List.map
+            (\id ->
+                let
+                    row =
+                        id // size
+
+                    cell =
+                        modBy size id
+                in
+                randomCellGenerator ( row, cell )
             )
-        |> List.concat
         |> Rand.sequence
