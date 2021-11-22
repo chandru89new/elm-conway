@@ -7,6 +7,7 @@ import Html.Attributes as Attr
 import Html.Events as Ev
 import List.Extra as List
 import Random as Rand
+import Random.Extra as Rand
 
 
 convertToStyle : List ( String, String ) -> List (H.Attribute msg)
@@ -109,34 +110,6 @@ viewRow size row =
         (List.map (viewCell size) row)
 
 
-randomBoolGenerator : Rand.Generator Status
-randomBoolGenerator =
-    Rand.weighted ( 80, Dead ) [ ( 20, Alive ) ]
-
-
-randomList : Int -> Rand.Generator (List Status)
-randomList size =
-    Rand.list (size * size) randomBoolGenerator
-
-
-boardGenerator : Int -> List Status -> Board
-boardGenerator size listOfCellStatuses =
-    listOfCellStatuses
-        |> List.groupsOf size
-        |> List.indexedMap
-            (\rowId row ->
-                List.indexedMap
-                    (\cellId status ->
-                        { status = status
-                        , position = ( rowId, cellId )
-                        }
-                    )
-                    row
-            )
-        |> List.map (\row -> Array.fromList row)
-        |> Array.fromList
-
-
 emptyBoardGenerator : Int -> Board
 emptyBoardGenerator size =
     List.range 1 (size * size)
@@ -151,7 +124,7 @@ emptyBoardGenerator size =
                     )
                     row
             )
-        |> List.map (\row -> Array.fromList row)
+        |> List.map Array.fromList
         |> Array.fromList
 
 
@@ -258,43 +231,26 @@ hasCivilizationCollapsed board =
         |> not
 
 
+randomCellGenerator : Position -> Rand.Generator Cell
+randomCellGenerator position =
+    Rand.map
+        (\randStatus ->
+            { position = position
+            , status = randStatus
+            }
+        )
+        (Rand.weighted ( 80, Dead ) [ ( 20, Alive ) ])
 
--- neighbors : Position -> List Position
--- neighbors ( row, cell ) =
---     [ ( row - 1, cell - 1 )
---     , ( row - 1, cell )
---     , ( row - 1, cell + 1 )
---     , ( row, cell - 1 )
---     , ( row, cell + 1 )
---     , ( row + 1, cell - 1 )
---     , ( row + 1, cell )
---     , ( row + 1, cell + 1 )
---     ]
--- generateNextGenerationForCell : Board -> Cell -> Cell
--- generateNextGenerationForCell board cell =
---     let
---         neighboringCells =
---             List.map
---                 (List.filter (\cell_ -> List.member cell_.position (neighbors cell.position)))
---                 board
---                 |> List.concat
---         aliveNeighbors =
---             List.length <| List.filter (\c -> c.status == Alive) neighboringCells
---         getNextGenForAliveCell =
---             if aliveNeighbors == 2 then
---                 Alive
---             else
---                 Dead
---         getNextGenForDeadCell =
---             if aliveNeighbors >= 3 then
---                 Alive
---             else
---                 Dead
---     in
---     { cell
---         | status =
---             if cell.status == Alive then
---                 getNextGenForAliveCell
---             else
---                 getNextGenForDeadCell
---     }
+
+randomBoardGenerator : Int -> Rand.Generator (List Cell)
+randomBoardGenerator size =
+    List.range 1 (size * size)
+        |> List.groupsOf size
+        |> List.indexedMap
+            (\rowId row ->
+                List.indexedMap
+                    (\cellId _ -> randomCellGenerator ( rowId, cellId ))
+                    row
+            )
+        |> List.concat
+        |> Rand.sequence

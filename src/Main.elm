@@ -6,6 +6,7 @@ import Browser
 import Html as H
 import Html.Attributes as Attr
 import Html.Events as Ev
+import List.Extra as List
 import Random
 import Time
 
@@ -35,7 +36,7 @@ type CivilizationState
 
 type Msg
     = NoOp
-    | GenerateBoard (List B.Status)
+    | GenerateBoard (List B.Cell)
     | GenerateCleanSlate
     | ChangeSizeOfBoard Int
     | ResetBoard
@@ -58,7 +59,7 @@ init _ =
       , civilizationState = Stopped
       , runs = []
       }
-    , Random.generate GenerateBoard (B.randomList size)
+    , Random.generate GenerateBoard (B.randomBoardGenerator size)
     )
 
 
@@ -83,10 +84,18 @@ update msg model =
             )
 
         ResetBoard ->
-            ( { model | board = Ar.empty, generation = 0, civilizationState = Stopped, runs = [] }, Random.generate GenerateBoard (B.randomList model.size) )
+            ( { model | board = Ar.empty, generation = 0, civilizationState = Stopped, runs = [] }, Random.generate GenerateBoard (B.randomBoardGenerator model.size) )
 
-        GenerateBoard list ->
-            ( { model | board = B.boardGenerator model.size list }, Cmd.none )
+        GenerateBoard flatBoard ->
+            ( { model
+                | board =
+                    flatBoard
+                        |> List.groupsOf model.size
+                        |> List.map Ar.fromList
+                        |> Ar.fromList
+              }
+            , Cmd.none
+            )
 
         ChangeSizeOfBoard size ->
             ( { model
@@ -94,7 +103,7 @@ update msg model =
                 , civilizationState = Stopped
                 , generation = 0
               }
-            , Random.generate GenerateBoard (B.randomList size)
+            , Random.generate GenerateBoard (B.randomBoardGenerator size)
             )
 
         BoardInteraction boardMsg ->
@@ -152,7 +161,7 @@ update msg model =
         Start ->
             if B.hasCivilizationCollapsed model.board then
                 ( { model | civilizationState = Running, generation = 0 }
-                , Random.generate GenerateBoard (B.randomList model.size)
+                , Random.generate GenerateBoard (B.randomBoardGenerator model.size)
                 )
 
             else
